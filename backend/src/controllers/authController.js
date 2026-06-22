@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const User = require('../models/userModel');
+const sendEmail = require('../utils/sendEmail');
 
 const generateAccessToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_ACCESS_SECRET, {
@@ -194,9 +196,183 @@ const refreshToken = async (req, res, next) => {
   }
 };
 
+const forgotPassword = async (req, res, next) => {
+  const { email } = req.body;
+
+  try {
+    if (!email) {
+      const error = new Error('Please provide an email');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      const error = new Error('There is no user with that email');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    const resetToken = crypto.randomBytes(20).toString('hex');
+
+    user.resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+
+    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+
+    await user.save();
+
+    const resetUrl = `${req.protocol}://localhost:5173/reset-password/${resetToken}`;
+
+    const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please click on the link below, or copy/paste it into your browser to complete the process:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email and your password will remain unchanged.`;
+
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: 'Password Reset Token',
+        message,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Email sent successfully. Please check the backend terminal for the reset link.',
+      });
+    } catch (err) {
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await user.save();
+
+      const error = new Error('Email could not be sent');
+      error.statusCode = 500;
+      return next(error);
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+const resetPassword = async (req, res, next) => {
+  const { token } = req.params;
+  const { password } = req.body;
+
+  try {
+    if (!password) {
+      const error = new Error('Please provide a new password');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    if (password.length < 6) {
+      const error = new Error('Password must be at least 6 characters');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      const error = new Error('Invalid or expired password reset token');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    user.refreshToken = null;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successful',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateProfile = async (req, res, next) => {
+  const { name, email, currentPassword, newPassword } = req.body;
+
+  try {
+    const user = await User.findById(req.user._id).select('+password');
+    if (!user) {
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    if (email && email !== user.email) {
+      const emailExists = await User.findOne({ email });
+      if (emailExists) {
+        const error = new Error('Email is already taken');
+        error.statusCode = 400;
+        return next(error);
+      }
+      user.email = email;
+    }
+
+    if (name) {
+      user.name = name;
+    }
+
+    if (newPassword) {
+      if (!currentPassword) {
+        const error = new Error('Please provide current password to change password');
+        error.statusCode = 400;
+        return next(error);
+      }
+
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        const error = new Error('Incorrect current password');
+        error.statusCode = 400;
+        return next(error);
+      }
+
+      if (newPassword.length < 6) {
+        const error = new Error('New password must be at least 6 characters');
+        error.statusCode = 400;
+        return next(error);
+      }
+
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(newPassword, salt);
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
   logout,
   refreshToken,
+  forgotPassword,
+  resetPassword,
+  updateProfile,
 };
