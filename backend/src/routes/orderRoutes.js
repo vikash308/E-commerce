@@ -7,6 +7,7 @@ const {
   updateOrderStatus,
 } = require('../controllers/orderController');
 const { protect, admin } = require('../middlewares/authMiddleware');
+const { validateOrder } = require('../middlewares/validationMiddleware');
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ const router = express.Router();
 router.use(protect);
 
 router.route('/')
-  .post(placeOrder)
+  .post(validateOrder, placeOrder)
   .get(getOrders);
 
 router.route('/:id')

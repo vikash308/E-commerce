@@ -6,6 +6,7 @@ const {
   removeFromCart,
 } = require('../controllers/cartController');
 const { protect } = require('../middlewares/authMiddleware');
+const { validateCart } = require('../middlewares/validationMiddleware');
 
 const router = express.Router();
 
@@ -14,8 +15,8 @@ router.use(protect);
 
 router.route('/')
   .get(getCart)
-  .post(addToCart)
-  .put(updateQuantity);
+  .post(validateCart, addToCart)
+  .put(validateCart, updateQuantity);
 
 router.route('/:productId')
   .delete(removeFromCart);

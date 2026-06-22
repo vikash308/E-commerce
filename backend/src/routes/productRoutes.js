@@ -8,6 +8,7 @@ const {
 } = require('../controllers/productController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
 const upload = require('../middlewares/uploadMiddleware');
+const { validateProduct } = require('../middlewares/validationMiddleware');
 
 const router = express.Router();
 
@@ -16,7 +17,7 @@ router.get('/', getProducts);
 router.get('/:idOrSlug', getProductDetails);
 
 // Protected routes (Admin and Seller access)
-router.post('/', protect, authorize('admin', 'seller'), upload.array('images', 5), addProduct);
+router.post('/', protect, authorize('admin', 'seller'), upload.array('images', 5), validateProduct, addProduct);
 router.put('/:id', protect, authorize('admin', 'seller'), upload.array('images', 5), updateProduct);
 router.delete('/:id', protect, authorize('admin', 'seller'), deleteProduct);
 
