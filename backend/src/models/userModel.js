@@ -29,6 +29,11 @@ const userSchema = new mongoose.Schema(
       enum: ['customer', 'seller', 'admin'],
       default: 'customer',
     },
+    sellerRequestStatus: {
+      type: String,
+      enum: ['none', 'pending', 'approved', 'rejected'],
+      default: 'none',
+    },
     refreshToken: {
       type: String,
       default: null,

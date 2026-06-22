@@ -85,8 +85,48 @@ const deleteUser = async (req, res, next) => {
   }
 };
 
+const processSellerRequest = async (req, res, next) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  const validStatuses = ['approved', 'rejected'];
+
+  try {
+    if (!status || !validStatuses.includes(status)) {
+      const error = new Error(`Please provide a valid status: ${validStatuses.join(', ')}`);
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    if (status === 'approved') {
+      user.role = 'seller';
+      user.sellerRequestStatus = 'approved';
+    } else {
+      user.sellerRequestStatus = 'rejected';
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Seller request ${status} successfully`,
+      data: user,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getUsers,
   updateUserRole,
   deleteUser,
+  processSellerRequest,
 };

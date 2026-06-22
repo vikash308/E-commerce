@@ -48,6 +48,21 @@ export const removeUser = createAsyncThunk(
   }
 );
 
+export const processSellerRequest = createAsyncThunk(
+  'users/processSellerRequest',
+  async ({ id, status }, { rejectWithValue }) => {
+    try {
+      const response = await apiClient(`/users/${id}/seller-request`, {
+        method: 'PUT',
+        body: JSON.stringify({ status }),
+      });
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to process seller request');
+    }
+  }
+);
+
 const userSlice = createSlice({
   name: 'users',
   initialState,
@@ -101,6 +116,23 @@ const userSlice = createSlice({
         state.users = state.users.filter((u) => u._id !== id);
       })
       .addCase(removeUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
+      // Process Seller Request
+      .addCase(processSellerRequest.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(processSellerRequest.fulfilled, (state, action) => {
+        state.loading = false;
+        const updatedUser = action.payload.data;
+        state.users = state.users.map((u) => 
+          u._id === updatedUser._id ? updatedUser : u
+        );
+      })
+      .addCase(processSellerRequest.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

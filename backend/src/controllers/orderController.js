@@ -91,6 +91,12 @@ const getOrders = async (req, res, next) => {
     if (req.user.role === 'admin') {
       // Admin sees all orders
       orders = await Order.find({}).populate('user', 'name email').sort({ createdAt: -1 });
+    } else if (req.user.role === 'seller') {
+      // Seller sees orders containing their own products
+      const myProducts = await Product.find({ user: req.user._id }).distinct('_id');
+      orders = await Order.find({ 'orderItems.product': { $in: myProducts } })
+        .populate('user', 'name email')
+        .sort({ createdAt: -1 });
     } else {
       // Customer sees only their own orders
       orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
@@ -125,7 +131,14 @@ const getOrderDetails = async (req, res, next) => {
     }
 
     // Authorization check
-    if (req.user.role !== 'admin' && order.user._id.toString() !== req.user._id.toString()) {
+    let isSellerOwner = false;
+    if (req.user.role === 'seller') {
+      const myProducts = await Product.find({ user: req.user._id }).distinct('_id');
+      const myProductIds = myProducts.map(p => p.toString());
+      isSellerOwner = order.orderItems.some(item => myProductIds.includes(item.product.toString()));
+    }
+
+    if (req.user.role !== 'admin' && order.user._id.toString() !== req.user._id.toString() && !isSellerOwner) {
       const error = new Error('Not authorized to view this order');
       error.statusCode = 403;
       return next(error);
@@ -218,6 +231,20 @@ const updateOrderStatus = async (req, res, next) => {
     if (!order) {
       const error = new Error('Order not found');
       error.statusCode = 404;
+      return next(error);
+    }
+
+    // Authorization check
+    let isSellerOwner = false;
+    if (req.user.role === 'seller') {
+      const myProducts = await Product.find({ user: req.user._id }).distinct('_id');
+      const myProductIds = myProducts.map(p => p.toString());
+      isSellerOwner = order.orderItems.some(item => myProductIds.includes(item.product.toString()));
+    }
+
+    if (req.user.role !== 'admin' && !isSellerOwner) {
+      const error = new Error('Not authorized to update status of this order');
+      error.statusCode = 403;
       return next(error);
     }
 

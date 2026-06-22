@@ -18,7 +18,7 @@ import {
 } from '../store/slices/productSlice';
 import showToast from '../utils/toast';
 
-export const AdminProducts = () => {
+export const SellerProducts = () => {
   const dispatch = useDispatch();
 
   const { products, categories, loading } = useSelector((state) => state.products);
@@ -114,11 +114,18 @@ export const AdminProducts = () => {
     }
   };
 
-  // Filter products locally for search
+  const isSellerOwner = (prod) => {
+    if (!prod) return false;
+    const prodUserId = prod.user?._id || prod.user || '';
+    return prodUserId.toString() === user?.id?.toString() || prodUserId.toString() === user?._id?.toString();
+  };
+
+  // Filter products locally for search, and limit to ONLY those owned by the active seller
   const displayProducts = products
     .filter((prod) => {
-      return prod.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-             prod.description.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchSearch = prod.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          prod.description.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchSearch && isSellerOwner(prod);
     });
 
   return (
@@ -126,9 +133,7 @@ export const AdminProducts = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', fontWeight: 800 }}>Product Management</h2>
-          <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-            Manage all system products
-          </p>
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Manage your storefront products and inventory stock levels</p>
         </div>
         <button className="btn btn-primary" onClick={handleOpenAddModal}>
           <Plus size={16} />
@@ -378,4 +383,4 @@ export const AdminProducts = () => {
   );
 };
 
-export default AdminProducts;
+export default SellerProducts;

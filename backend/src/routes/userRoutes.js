@@ -3,6 +3,7 @@ const {
   getUsers,
   updateUserRole,
   deleteUser,
+  processSellerRequest,
 } = require('../controllers/userController');
 const { protect, admin } = require('../middlewares/authMiddleware');
 
@@ -17,6 +18,9 @@ router.route('/')
 
 router.route('/:id/role')
   .put(updateUserRole);
+
+router.route('/:id/seller-request')
+  .put(processSellerRequest);
 
 router.route('/:id')
   .delete(deleteUser);

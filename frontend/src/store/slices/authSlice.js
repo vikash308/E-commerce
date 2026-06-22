@@ -126,6 +126,20 @@ export const updateUserProfile = createAsyncThunk(
   }
 );
 
+export const requestSellerRole = createAsyncThunk(
+  'auth/requestSeller',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await apiClient('/auth/request-seller', {
+        method: 'POST',
+      });
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to submit seller request');
+    }
+  }
+);
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -247,6 +261,21 @@ const authSlice = createSlice({
         state.loading = false;
       })
       .addCase(resetPasswordUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
+      // Request Seller Role
+      .addCase(requestSellerRole.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(requestSellerRole.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload.data;
+        localStorage.setItem('user', JSON.stringify(action.payload.data));
+      })
+      .addCase(requestSellerRole.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

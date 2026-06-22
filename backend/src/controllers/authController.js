@@ -116,6 +116,7 @@ const login = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        sellerRequestStatus: user.sellerRequestStatus || 'none',
       },
       tokens: {
         accessToken,
@@ -360,6 +361,47 @@ const updateProfile = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        sellerRequestStatus: user.sellerRequestStatus || 'none',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const requestSeller = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    if (user.role === 'seller' || user.role === 'admin') {
+      const error = new Error('User is already a seller or admin');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    if (user.sellerRequestStatus === 'pending') {
+      const error = new Error('Seller request is already pending');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    user.sellerRequestStatus = 'pending';
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Seller request submitted successfully',
+      data: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        sellerRequestStatus: user.sellerRequestStatus,
       },
     });
   } catch (error) {
@@ -375,4 +417,5 @@ module.exports = {
   forgotPassword,
   resetPassword,
   updateProfile,
+  requestSeller,
 };

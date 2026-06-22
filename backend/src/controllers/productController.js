@@ -256,7 +256,19 @@ const getProducts = async (req, res, next) => {
         }
       : {};
 
-    const categoryQuery = req.query.category ? { category: req.query.category } : {};
+    let categoryQuery = {};
+    if (req.query.category) {
+      if (mongoose.Types.ObjectId.isValid(req.query.category)) {
+        const categories = await Category.find({
+          $or: [
+            { _id: req.query.category },
+            { parent: req.query.category }
+          ]
+        });
+        const categoryIds = categories.map(c => c._id);
+        categoryQuery = { category: { $in: categoryIds } };
+      }
+    }
 
     const priceQuery = {};
     if (req.query.minPrice !== undefined || req.query.maxPrice !== undefined) {

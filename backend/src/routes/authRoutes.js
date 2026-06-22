@@ -7,6 +7,7 @@ const {
   forgotPassword,
   resetPassword,
   updateProfile,
+  requestSeller,
 } = require('../controllers/authController');
 const { protect } = require('../middlewares/authMiddleware');
 const { authLimiter } = require('../middlewares/securityMiddleware');
@@ -28,6 +29,7 @@ router.put('/reset-password/:token', authLimiter, resetPassword);
 
 // Protected routes (to verify authentication works)
 router.put('/profile', protect, validateUpdateProfile, updateProfile);
+router.post('/request-seller', protect, requestSeller);
 router.get('/me', protect, (req, res) => {
   res.status(200).json({
     success: true,
@@ -35,6 +37,8 @@ router.get('/me', protect, (req, res) => {
       id: req.user._id,
       name: req.user.name,
       email: req.user.email,
+      role: req.user.role,
+      sellerRequestStatus: req.user.sellerRequestStatus || 'none',
       createdAt: req.user.createdAt,
     },
   });

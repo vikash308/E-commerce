@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, Mail, Calendar, ShieldCheck, ShoppingBag, DollarSign, LogOut, ArrowRight, Edit3, Key, Loader2, X } from 'lucide-react';
 import { fetchOrders } from '../store/slices/orderSlice';
-import { logoutUser, updateUserProfile, clearAuthError } from '../store/slices/authSlice';
+import { logoutUser, updateUserProfile, clearAuthError, requestSellerRole } from '../store/slices/authSlice';
 import { clearCartState } from '../store/slices/cartSlice';
 import { clearWishlistState } from '../store/slices/wishlistSlice';
 import { clearOrdersState } from '../store/slices/orderSlice';
@@ -98,6 +98,19 @@ export const Profile = () => {
     dispatch(clearAuthError());
   };
 
+  const handleRequestSeller = async () => {
+    try {
+      const resultAction = await dispatch(requestSellerRole());
+      if (requestSellerRole.fulfilled.match(resultAction)) {
+        showToast('success', 'Seller application submitted successfully!');
+      } else {
+        showToast('error', resultAction.payload || 'Failed to submit application');
+      }
+    } catch (err) {
+      showToast('error', 'An error occurred. Please try again.');
+    }
+  };
+
   // Calculations
   const joinedDate = user?.createdAt 
     ? new Date(user.createdAt).toLocaleDateString(undefined, {
@@ -181,6 +194,85 @@ export const Profile = () => {
             </div>
           </div>
         </div>
+
+        {/* Become a Seller Section */}
+        {user?.role === 'customer' && (
+          <div className="glass-card" style={{ padding: '28px', display: 'flex', flexDirection: 'column', gap: '16px', transition: 'none', transform: 'none' }}>
+            <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: 700, borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShieldCheck size={18} style={{ color: 'var(--primary)' }} />
+              Become a Seller on VikaStore
+            </h4>
+            
+            {(!user.sellerRequestStatus || user.sellerRequestStatus === 'none') && (
+              <div>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.5', marginBottom: '16px' }}>
+                  Want to sell your own merchandise? Apply to become a seller! You'll be able to publish products, manage your inventory, and view store statistics directly from the portal once approved.
+                </p>
+                <button 
+                  className="btn btn-primary"
+                  style={{ width: 'fit-content' }}
+                  onClick={handleRequestSeller}
+                  disabled={loading}
+                >
+                  {loading ? 'Submitting...' : 'Submit Seller Application'}
+                </button>
+              </div>
+            )}
+
+            {user.sellerRequestStatus === 'pending' && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '16px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(245, 158, 11, 0.1)',
+                border: '1px solid rgba(245, 158, 11, 0.2)',
+                color: 'var(--warning)'
+              }}>
+                <Loader2 size={20} className="animate-spin" />
+                <div>
+                  <h5 style={{ fontWeight: 700, fontSize: '14px', margin: 0 }}>Application Under Review</h5>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px', margin: 0 }}>
+                    Your request to become a seller is currently pending admin validation.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {user.sellerRequestStatus === 'rejected' && (
+              <div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '16px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  color: 'var(--danger)',
+                  marginBottom: '16px'
+                }}>
+                  <X size={20} />
+                  <div>
+                    <h5 style={{ fontWeight: 700, fontSize: '14px', margin: 0 }}>Application Declined</h5>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px', margin: 0 }}>
+                      Unfortunately, your application was declined. You can adjust your profile details and re-apply.
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  className="btn btn-primary"
+                  style={{ width: 'fit-content' }}
+                  onClick={handleRequestSeller}
+                  disabled={loading}
+                >
+                  {loading ? 'Submitting...' : 'Re-apply for Seller Account'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Account Details / Edit Box */}
         <div className="glass-card" style={{ padding: '28px', display: 'flex', flexDirection: 'column', gap: '20px', transition: 'none', transform: 'none' }}>

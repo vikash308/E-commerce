@@ -6,7 +6,7 @@ const {
   cancelOrder,
   updateOrderStatus,
 } = require('../controllers/orderController');
-const { protect, admin } = require('../middlewares/authMiddleware');
+const { protect, admin, authorize } = require('../middlewares/authMiddleware');
 const { validateOrder } = require('../middlewares/validationMiddleware');
 
 const router = express.Router();
@@ -25,6 +25,6 @@ router.route('/:id/cancel')
   .put(cancelOrder);
 
 router.route('/:id/status')
-  .put(admin, updateOrderStatus);
+  .put(authorize('admin', 'seller'), updateOrderStatus);
 
 module.exports = router;

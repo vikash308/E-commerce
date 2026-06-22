@@ -4,27 +4,25 @@ import { useSelector } from 'react-redux';
 import { 
   LayoutDashboard, 
   ShoppingBag, 
-  FolderTree, 
   Package, 
-  Users, 
   ArrowLeft, 
   ShieldAlert 
 } from 'lucide-react';
 
-export const AdminLayout = () => {
+export const SellerLayout = () => {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
 
-  // Security checks: user must be authenticated AND have role admin
+  // Security checks: user must be authenticated AND have role seller
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  if (user?.role !== 'admin') {
+  if (user?.role !== 'seller') {
     return (
       <div className="container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '400px', gap: '16px' }}>
         <ShieldAlert size={48} className="danger animate-bounce" />
         <h3>Access Denied</h3>
-        <p className="text-secondary">You do not have administrative permissions to access this area.</p>
+        <p className="text-secondary">You do not have seller permissions to access this area.</p>
         <NavLink to="/" className="btn btn-primary">
           <ArrowLeft size={16} />
           Back to Shop
@@ -35,19 +33,19 @@ export const AdminLayout = () => {
 
   return (
     <div className="container" style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: '32px', marginTop: '20px', minHeight: 'calc(100vh - 120px)' }}>
-      {/* Admin Sidebar Navigation */}
+      {/* Seller Sidebar Navigation */}
       <aside className="glass-card" style={{ height: 'fit-content', position: 'sticky', top: '108px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <div>
           <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span>Portal:</span>
-            <span style={{ textTransform: 'capitalize', color: 'var(--primary)' }}>{user.role}</span>
+            <span style={{ textTransform: 'capitalize', color: 'var(--primary)' }}>Seller</span>
           </h3>
-          <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Management controls</p>
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Storefront controls</p>
         </div>
 
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <NavLink 
-            to="/admin" 
+            to="/seller" 
             end
             className={({ isActive }) => `category-item ${isActive ? 'active' : ''}`}
             style={{ display: 'flex', alignItems: 'center', gap: '10px' }}
@@ -57,39 +55,21 @@ export const AdminLayout = () => {
           </NavLink>
 
           <NavLink 
-            to="/admin/products" 
+            to="/seller/products" 
             className={({ isActive }) => `category-item ${isActive ? 'active' : ''}`}
             style={{ display: 'flex', alignItems: 'center', gap: '10px' }}
           >
             <ShoppingBag size={16} />
-            <span>Products</span>
+            <span>My Products</span>
           </NavLink>
 
           <NavLink 
-            to="/admin/categories" 
-            className={({ isActive }) => `category-item ${isActive ? 'active' : ''}`}
-            style={{ display: 'flex', alignItems: 'center', gap: '10px' }}
-          >
-            <FolderTree size={16} />
-            <span>Categories</span>
-          </NavLink>
-
-          <NavLink 
-            to="/admin/orders" 
+            to="/seller/orders" 
             className={({ isActive }) => `category-item ${isActive ? 'active' : ''}`}
             style={{ display: 'flex', alignItems: 'center', gap: '10px' }}
           >
             <Package size={16} />
-            <span>Orders</span>
-          </NavLink>
-
-          <NavLink 
-            to="/admin/users" 
-            className={({ isActive }) => `category-item ${isActive ? 'active' : ''}`}
-            style={{ display: 'flex', alignItems: 'center', gap: '10px' }}
-          >
-            <Users size={16} />
-            <span>Users</span>
+            <span>My Orders</span>
           </NavLink>
         </nav>
 
@@ -101,7 +81,7 @@ export const AdminLayout = () => {
         </NavLink>
       </aside>
 
-      {/* Main Admin Section View */}
+      {/* Main Seller Section View */}
       <main style={{ minWidth: 0 }}>
         <Outlet />
       </main>
@@ -109,4 +89,4 @@ export const AdminLayout = () => {
   );
 };
 
-export default AdminLayout;
+export default SellerLayout;

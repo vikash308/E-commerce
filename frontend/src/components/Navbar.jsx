@@ -9,7 +9,9 @@ import {
   Search, 
   Package, 
   Sparkles,
-  Shield
+  Shield,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { setFilter, fetchProducts } from '../store/slices/productSlice';
 import { logoutUser } from '../store/slices/authSlice';
@@ -29,6 +31,16 @@ export const Navbar = () => {
 
   const [searchTerm, setSearchTerm] = useState(filters.keyword);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
 
   useEffect(() => {
     setSearchTerm(filters.keyword);
@@ -38,9 +50,7 @@ export const Navbar = () => {
     e.preventDefault();
     dispatch(setFilter({ keyword: searchTerm }));
     dispatch(fetchProducts());
-    if (location.pathname !== '/') {
-      navigate('/');
-    }
+    navigate(`/products?keyword=${encodeURIComponent(searchTerm)}`);
   };
 
   const handleLogout = () => {
@@ -82,8 +92,39 @@ export const Navbar = () => {
             to="/" 
             className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}
           >
-            Shop
+            Home
           </Link>
+
+          <Link 
+            to="/products" 
+            className={`nav-link ${location.pathname === '/products' ? 'active' : ''}`}
+          >
+            Products
+          </Link>
+
+          <button 
+            onClick={toggleTheme}
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.05)', 
+              border: '1px solid var(--border-color)', 
+              borderRadius: '50%', 
+              width: '36px', 
+              height: '36px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              cursor: 'pointer',
+              color: 'var(--text-primary)',
+              transition: 'var(--transition-fast)',
+              padding: 0,
+              marginLeft: '8px',
+              marginRight: '8px'
+            }}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            className="theme-toggle"
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
 
           {isAuthenticated ? (
             <>
@@ -147,7 +188,7 @@ export const Navbar = () => {
                     </div>
                     <hr style={{ borderColor: 'var(--border-color)', margin: '4px 0' }} />
                     
-                    {(user?.role === 'admin' || user?.role === 'seller') && (
+                    {user?.role === 'admin' && (
                       <>
                         <Link 
                           to="/admin" 
@@ -163,6 +204,27 @@ export const Navbar = () => {
                         >
                           <Shield size={14} style={{ marginRight: '6px' }} />
                           Admin Portal
+                        </Link>
+                        <hr style={{ borderColor: 'var(--border-color)', margin: '4px 0' }} />
+                      </>
+                    )}
+
+                    {user?.role === 'seller' && (
+                      <>
+                        <Link 
+                          to="/seller" 
+                          className="btn btn-primary" 
+                          style={{ 
+                            justifyContent: 'flex-start', 
+                            padding: '8px 12px', 
+                            fontSize: '13px',
+                            width: '100%',
+                            boxShadow: 'none'
+                          }}
+                          onClick={() => setShowDropdown(false)}
+                        >
+                          <Shield size={14} style={{ marginRight: '6px' }} />
+                          Seller Portal
                         </Link>
                         <hr style={{ borderColor: 'var(--border-color)', margin: '4px 0' }} />
                       </>
