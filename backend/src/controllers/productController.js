@@ -283,11 +283,19 @@ const getProducts = async (req, res, next) => {
 
     const ratingsQuery = req.query.ratings ? { ratings: { $gte: Number(req.query.ratings) } } : {};
 
+    let sellerQuery = {};
+    if (req.query.seller) {
+      if (mongoose.Types.ObjectId.isValid(req.query.seller)) {
+        sellerQuery = { user: req.query.seller };
+      }
+    }
+
     const filterQuery = {
       ...keywordQuery,
       ...categoryQuery,
       ...priceQuery,
       ...ratingsQuery,
+      ...sellerQuery,
     };
 
     let sortBy = '-createdAt';
@@ -328,9 +336,9 @@ const getProductDetails = async (req, res, next) => {
   try {
     let product;
     if (mongoose.Types.ObjectId.isValid(idOrSlug)) {
-      product = await Product.findById(idOrSlug).populate('category', 'name slug');
+      product = await Product.findById(idOrSlug).populate('category', 'name slug').populate('user', 'name email');
     } else {
-      product = await Product.findOne({ slug: idOrSlug }).populate('category', 'name slug');
+      product = await Product.findOne({ slug: idOrSlug }).populate('category', 'name slug').populate('user', 'name email');
     }
 
     if (!product) {
@@ -348,10 +356,209 @@ const getProductDetails = async (req, res, next) => {
   }
 };
 
+
+const createProductReview = async (req, res, next) => {
+  const { rating, comment } = req.body;
+  const { id } = req.params;
+
+  try {
+    if (rating === undefined || !comment) {
+      const error = new Error('Please provide rating and comment');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const numRating = Number(rating);
+    if (isNaN(numRating) || numRating < 1 || numRating > 5) {
+      const error = new Error('Rating must be a number between 1 and 5');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      const error = new Error('Invalid product ID');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const product = await Product.findById(id);
+
+    if (!product) {
+      const error = new Error('Product not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    const alreadyReviewed = product.reviews.find(
+      (r) => r.user.toString() === req.user._id.toString()
+    );
+
+    if (alreadyReviewed) {
+      const error = new Error('You have already reviewed this product');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const review = {
+      name: req.user.name,
+      rating: numRating,
+      comment: comment.trim(),
+      user: req.user._id,
+    };
+
+    product.reviews.push(review);
+    product.numReviews = product.reviews.length;
+    product.ratings =
+      product.reviews.reduce((acc, item) => item.rating + acc, 0) /
+      product.reviews.length;
+
+    await product.save();
+
+    // Populate category and user (seller) info before returning
+    await product.populate('category', 'name slug');
+    await product.populate('user', 'name email');
+
+    res.status(201).json({
+      success: true,
+      message: 'Review added successfully',
+      data: product,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update Product Review
+// @route   PUT /api/products/:id/reviews
+// @access  Private
+const updateProductReview = async (req, res, next) => {
+  const { rating, comment } = req.body;
+  const { id } = req.params;
+
+  try {
+    if (rating === undefined || !comment) {
+      const error = new Error('Please provide rating and comment');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const numRating = Number(rating);
+    if (isNaN(numRating) || numRating < 1 || numRating > 5) {
+      const error = new Error('Rating must be a number between 1 and 5');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      const error = new Error('Invalid product ID');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const product = await Product.findById(id);
+
+    if (!product) {
+      const error = new Error('Product not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    const review = product.reviews.find(
+      (r) => r.user.toString() === req.user._id.toString()
+    );
+
+    if (!review) {
+      const error = new Error('Review not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    review.rating = numRating;
+    review.comment = comment.trim();
+
+    product.ratings =
+      product.reviews.reduce((acc, item) => item.rating + acc, 0) /
+      product.reviews.length;
+
+    await product.save();
+
+    await product.populate('category', 'name slug');
+    await product.populate('user', 'name email');
+
+    res.status(200).json({
+      success: true,
+      message: 'Review updated successfully',
+      data: product,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Delete Product Review
+// @route   DELETE /api/products/:id/reviews
+// @access  Private
+const deleteProductReview = async (req, res, next) => {
+  const { id } = req.params;
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      const error = new Error('Invalid product ID');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const product = await Product.findById(id);
+
+    if (!product) {
+      const error = new Error('Product not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    const reviewIndex = product.reviews.findIndex(
+      (r) => r.user.toString() === req.user._id.toString()
+    );
+
+    if (reviewIndex === -1) {
+      const error = new Error('Review not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    product.reviews.splice(reviewIndex, 1);
+    product.numReviews = product.reviews.length;
+
+    if (product.reviews.length > 0) {
+      product.ratings =
+        product.reviews.reduce((acc, item) => item.rating + acc, 0) /
+        product.reviews.length;
+    } else {
+      product.ratings = 0;
+    }
+
+    await product.save();
+
+    await product.populate('category', 'name slug');
+    await product.populate('user', 'name email');
+
+    res.status(200).json({
+      success: true,
+      message: 'Review deleted successfully',
+      data: product,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   addProduct,
   updateProduct,
   deleteProduct,
   getProducts,
   getProductDetails,
+  createProductReview,
+  updateProductReview,
+  deleteProductReview,
 };

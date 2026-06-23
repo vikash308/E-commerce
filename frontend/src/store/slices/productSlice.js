@@ -155,6 +155,50 @@ export const deleteCategory = createAsyncThunk(
   }
 );
 
+export const createProductReview = createAsyncThunk(
+  'products/createReview',
+  async ({ productId, rating, comment }, { rejectWithValue }) => {
+    try {
+      const response = await apiClient(`/products/${productId}/reviews`, {
+        method: 'POST',
+        body: JSON.stringify({ rating, comment }),
+      });
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to submit review');
+    }
+  }
+);
+
+export const updateProductReview = createAsyncThunk(
+  'products/updateReview',
+  async ({ productId, rating, comment }, { rejectWithValue }) => {
+    try {
+      const response = await apiClient(`/products/${productId}/reviews`, {
+        method: 'PUT',
+        body: JSON.stringify({ rating, comment }),
+      });
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to update review');
+    }
+  }
+);
+
+export const deleteProductReview = createAsyncThunk(
+  'products/deleteReview',
+  async (productId, { rejectWithValue }) => {
+    try {
+      const response = await apiClient(`/products/${productId}/reviews`, {
+        method: 'DELETE',
+      });
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to delete review');
+    }
+  }
+);
+
 const productSlice = createSlice({
   name: 'products',
   initialState,
@@ -255,6 +299,48 @@ const productSlice = createSlice({
         state.products = state.products.filter(p => p._id !== id);
       })
       .addCase(deleteProduct.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      // Create Product Review
+      .addCase(createProductReview.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createProductReview.fulfilled, (state, action) => {
+        state.loading = false;
+        state.product = action.payload.data;
+      })
+      .addCase(createProductReview.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      // Update Product Review
+      .addCase(updateProductReview.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateProductReview.fulfilled, (state, action) => {
+        state.loading = false;
+        state.product = action.payload.data;
+      })
+      .addCase(updateProductReview.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      // Delete Product Review
+      .addCase(deleteProductReview.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteProductReview.fulfilled, (state, action) => {
+        state.loading = false;
+        state.product = action.payload.data;
+      })
+      .addCase(deleteProductReview.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })

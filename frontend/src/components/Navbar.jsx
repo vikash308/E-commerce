@@ -11,7 +11,9 @@ import {
   Sparkles,
   Shield,
   Sun,
-  Moon
+  Moon,
+  Menu,
+  X
 } from 'lucide-react';
 import { setFilter, fetchProducts } from '../store/slices/productSlice';
 import { logoutUser } from '../store/slices/authSlice';
@@ -32,6 +34,7 @@ export const Navbar = () => {
   const [searchTerm, setSearchTerm] = useState(filters.keyword);
   const [showDropdown, setShowDropdown] = useState(false);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -45,6 +48,23 @@ export const Navbar = () => {
   useEffect(() => {
     setSearchTerm(filters.keyword);
   }, [filters.keyword]);
+
+  // Click outside to close mobile menu
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const handleOutsideClick = (e) => {
+      const navbarWrapper = document.querySelector('.navbar-wrapper');
+      if (navbarWrapper && !navbarWrapper.contains(e.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('click', handleOutsideClick);
+    return () => {
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  }, [isMenuOpen]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -69,13 +89,61 @@ export const Navbar = () => {
   return (
     <header className="navbar-wrapper glass">
       <div className="container navbar">
-        <Link to="/" className="logo">
+        <Link to="/" className="logo" onClick={() => setIsMenuOpen(false)}>
           <Sparkles size={24} className="primary" />
           <span>VikaStore</span>
         </Link>
 
+        {/* Mobile controls (visible only on mobile) */}
+        <div className="mobile-toggle-group">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleTheme();
+            }}
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              cursor: 'pointer',
+              color: 'var(--text-primary)',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px'
+            }}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            className="theme-toggle"
+          >
+            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+          
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMenuOpen(!isMenuOpen);
+            }}
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              cursor: 'pointer',
+              color: 'var(--text-primary)',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px'
+            }}
+            aria-label="Toggle Menu"
+          >
+            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
+
         {/* Search Bar */}
-        <form onSubmit={handleSearchSubmit} className="search-bar">
+        <form onSubmit={handleSearchSubmit} className={`search-bar ${isMenuOpen ? 'mobile-open' : ''}`}>
           <Search size={18} className="search-icon" />
           <input
             type="text"
@@ -87,10 +155,11 @@ export const Navbar = () => {
         </form>
 
         {/* Links */}
-        <nav className="nav-links">
+        <nav className={`nav-links ${isMenuOpen ? 'mobile-open' : ''}`}>
           <Link 
             to="/" 
             className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}
+            onClick={() => setIsMenuOpen(false)}
           >
             Home
           </Link>
@@ -98,10 +167,12 @@ export const Navbar = () => {
           <Link 
             to="/products" 
             className={`nav-link ${location.pathname === '/products' ? 'active' : ''}`}
+            onClick={() => setIsMenuOpen(false)}
           >
             Products
           </Link>
 
+          {/* Theme Toggle - Desktop only */}
           <button 
             onClick={toggleTheme}
             style={{ 
@@ -121,7 +192,7 @@ export const Navbar = () => {
               marginRight: '8px'
             }}
             title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            className="theme-toggle"
+            className="theme-toggle-desktop"
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
@@ -131,9 +202,10 @@ export const Navbar = () => {
               <Link 
                 to="/wishlist" 
                 className={`nav-link ${location.pathname === '/wishlist' ? 'active' : ''}`}
+                onClick={() => setIsMenuOpen(false)}
               >
                 <Heart size={18} />
-                <span>Wishlist</span>
+                <span className="nav-link-label">Wishlist</span>
                 {wishlistItemsCount > 0 && (
                   <span className="badge">{wishlistItemsCount}</span>
                 )}
@@ -142,9 +214,10 @@ export const Navbar = () => {
               <Link 
                 to="/cart" 
                 className={`nav-link ${location.pathname === '/cart' ? 'active' : ''}`}
+                onClick={() => setIsMenuOpen(false)}
               >
                 <ShoppingBag size={18} />
-                <span>Cart</span>
+                <span className="nav-link-label">Cart</span>
                 {cartItemsCount > 0 && (
                   <span className="badge">{cartItemsCount}</span>
                 )}
@@ -153,13 +226,14 @@ export const Navbar = () => {
               <Link 
                 to="/orders" 
                 className={`nav-link ${location.pathname === '/orders' ? 'active' : ''}`}
+                onClick={() => setIsMenuOpen(false)}
               >
                 <Package size={18} />
-                <span>Orders</span>
+                <span className="nav-link-label">Orders</span>
               </Link>
 
               {/* User Dropdown */}
-              <div style={{ position: 'relative' }}>
+              <div style={{ position: 'relative' }} className="user-dropdown-container">
                 <button 
                   className="avatar-btn"
                   onClick={() => setShowDropdown(!showDropdown)}
@@ -170,7 +244,7 @@ export const Navbar = () => {
 
                 {showDropdown && (
                   <div 
-                    className="glass-card" 
+                    className="glass-card dropdown-menu"
                     style={{
                       position: 'absolute',
                       right: 0,
@@ -200,7 +274,7 @@ export const Navbar = () => {
                             width: '100%',
                             boxShadow: 'none'
                           }}
-                          onClick={() => setShowDropdown(false)}
+                          onClick={() => { setShowDropdown(false); setIsMenuOpen(false); }}
                         >
                           <Shield size={14} style={{ marginRight: '6px' }} />
                           Admin Portal
@@ -221,7 +295,7 @@ export const Navbar = () => {
                             width: '100%',
                             boxShadow: 'none'
                           }}
-                          onClick={() => setShowDropdown(false)}
+                          onClick={() => { setShowDropdown(false); setIsMenuOpen(false); }}
                         >
                           <Shield size={14} style={{ marginRight: '6px' }} />
                           Seller Portal
@@ -238,7 +312,7 @@ export const Navbar = () => {
                         fontSize: '13px',
                         width: '100%'
                       }}
-                      onClick={() => setShowDropdown(false)}
+                      onClick={() => { setShowDropdown(false); setIsMenuOpen(false); }}
                     >
                       <User size={14} style={{ marginRight: '6px' }} />
                       My Profile
@@ -251,7 +325,7 @@ export const Navbar = () => {
                         fontSize: '13px',
                         width: '100%'
                       }}
-                      onClick={handleLogout}
+                      onClick={() => { handleLogout(); setIsMenuOpen(false); }}
                     >
                       <LogOut size={14} />
                       Logout
@@ -261,7 +335,12 @@ export const Navbar = () => {
               </div>
             </>
           ) : (
-            <Link to="/login" className="btn btn-primary" style={{ padding: '8px 20px' }}>
+            <Link 
+              to="/login" 
+              className="btn btn-primary" 
+              style={{ padding: '8px 20px' }}
+              onClick={() => setIsMenuOpen(false)}
+            >
               Sign In
             </Link>
           )}

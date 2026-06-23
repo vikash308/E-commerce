@@ -1,23 +1,33 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { ArrowLeft, ShoppingCart, Heart, Star, Loader2, RefreshCw } from 'lucide-react';
-import { fetchProductDetails, clearProductDetails } from '../store/slices/productSlice';
+import { ArrowLeft, ShoppingCart, Heart, Star, Loader2, RefreshCw, Edit3, Trash2 } from 'lucide-react';
+import { fetchProductDetails, clearProductDetails, createProductReview, updateProductReview, deleteProductReview } from '../store/slices/productSlice';
 import { addToCart } from '../store/slices/cartSlice';
 import { addToWishlist, removeFromWishlist } from '../store/slices/wishlistSlice';
 import showToast from '../utils/toast';
+import ProductCard from '../components/ProductCard';
+import { apiClient } from '../store/apiClient';
 
 export const ProductDetails = () => {
   const { idOrSlug } = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { isAuthenticated } = useSelector((state) => state.auth);
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
   const { product, loading, error } = useSelector((state) => state.products);
   const { products: wishlistProducts } = useSelector((state) => state.wishlist);
 
   const [qty, setQty] = useState(1);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [isEditingReview, setIsEditingReview] = useState(false);
+  const [sellerProducts, setSellerProducts] = useState([]);
+  const [relatedProducts, setRelatedProducts] = useState([]);
+  const [sellerLoading, setSellerLoading] = useState(true);
+  const [relatedLoading, setRelatedLoading] = useState(true);
 
   useEffect(() => {
     dispatch(fetchProductDetails(idOrSlug));
@@ -26,6 +36,97 @@ export const ProductDetails = () => {
       dispatch(clearProductDetails());
     };
   }, [dispatch, idOrSlug]);
+
+  useEffect(() => {
+    const fetchExtraProducts = async () => {
+      if (product) {
+        // Fetch other products by this seller
+        if (product.user) {
+          const sellerId = typeof product.user === 'object' ? product.user._id : product.user;
+          try {
+            setSellerLoading(true);
+            const res = await apiClient(`/products?seller=${sellerId}`);
+            if (res && res.data) {
+              setSellerProducts(res.data.filter(p => p._id !== product._id));
+            }
+          } catch (err) {
+            console.error('Failed to fetch seller products', err);
+          } finally {
+            setSellerLoading(false);
+          }
+        }
+
+        // Fetch related products in same category
+        if (product.category) {
+          const catId = typeof product.category === 'object' ? product.category._id : product.category;
+          try {
+            setRelatedLoading(true);
+            const res = await apiClient(`/products?category=${catId}`);
+            if (res && res.data) {
+              setRelatedProducts(res.data.filter(p => p._id !== product._id));
+            }
+          } catch (err) {
+            console.error('Failed to fetch related products', err);
+          } finally {
+            setRelatedLoading(false);
+          }
+        }
+      }
+    };
+
+    fetchExtraProducts();
+  }, [product]);
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!comment.trim()) {
+      showToast('error', 'Please write a comment');
+      return;
+    }
+    setSubmittingReview(true);
+    try {
+      if (isEditingReview) {
+        await dispatch(
+          updateProductReview({
+            productId: product._id,
+            rating,
+            comment,
+          })
+        ).unwrap();
+        showToast('success', 'Review updated successfully!');
+        setIsEditingReview(false);
+      } else {
+        await dispatch(
+          createProductReview({
+            productId: product._id,
+            rating,
+            comment,
+          })
+        ).unwrap();
+        showToast('success', 'Review submitted successfully!');
+      }
+      setComment('');
+      setRating(5);
+    } catch (err) {
+      showToast('error', err || 'Failed to submit review');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const handleReviewDelete = async () => {
+    if (window.confirm('Are you sure you want to delete your review?')) {
+      try {
+        await dispatch(deleteProductReview(product._id)).unwrap();
+        showToast('success', 'Review deleted successfully!');
+        setIsEditingReview(false);
+        setComment('');
+        setRating(5);
+      } catch (err) {
+        showToast('error', err || 'Failed to delete review');
+      }
+    }
+  };
 
   const isWishlisted = wishlistProducts?.some((p) => p._id === product?._id);
 
@@ -160,7 +261,7 @@ export const ProductDetails = () => {
             <div style={{ display: 'flex', color: 'var(--warning)', gap: '4px' }}>
               {renderStars(product.ratings)}
             </div>
-            <span>{product.ratings.toFixed(1)} rating</span>
+            <span>{(product.ratings || 0).toFixed(1)} rating</span>
             <span style={{ color: 'var(--text-muted)' }}>|</span>
             <span style={{ color: 'var(--text-secondary)' }}>Verified Stock Item</span>
           </div>
@@ -220,6 +321,331 @@ export const ProductDetails = () => {
           )}
         </div>
       </div>
+
+      <div className="reviews-section" style={{ marginTop: '40px', minWidth: 0 }}>
+        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '22px', fontWeight: 800, marginBottom: '20px' }}>
+          Customer Reviews ({product.numReviews})
+        </h3>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', minWidth: 0 }}>
+          {/* Reviews list - Horizontal scroll */}
+          {!product.reviews || product.reviews.length === 0 ? (
+            <div className="glass-card" style={{ padding: '24px', textAlign: 'center' }}>
+              <p style={{ color: 'var(--text-secondary)', margin: 0 }}>No reviews yet. Be the first to review this product!</p>
+            </div>
+          ) : (
+            <div 
+              className="horizontal-scroll" 
+              style={{ 
+                display: 'flex', 
+                overflowX: 'auto', 
+                gap: '16px', 
+                padding: '8px 4px 16px 4px', 
+                scrollbarWidth: 'thin',
+                WebkitOverflowScrolling: 'touch'
+              }}
+            >
+              {product.reviews.map((rev) => {
+                const isMyReview = rev.user === user?.id || rev.user?._id === user?.id;
+                return (
+                  <div 
+                    key={rev._id} 
+                    className="glass-card" 
+                    style={{ 
+                      flex: '0 0 320px', 
+                      padding: '20px', 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '12px',
+                      background: 'var(--bg-secondary)',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-color)',
+                      transition: 'none',
+                      transform: 'none'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '14px' }}>
+                          {rev.name}
+                          {isMyReview && (
+                            <span style={{ fontSize: '11px', color: 'var(--primary)', marginLeft: '8px', fontWeight: 500 }}>(You)</span>
+                          )}
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                          {new Date(rev.createdAt).toLocaleDateString(undefined, {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </span>
+                      </div>
+                      
+                      {isMyReview && (
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            onClick={() => {
+                              setRating(rev.rating);
+                              setComment(rev.comment);
+                              setIsEditingReview(true);
+                            }}
+                            style={{ 
+                              background: 'rgba(99, 102, 241, 0.08)', 
+                              border: '1px solid rgba(99, 102, 241, 0.2)', 
+                              color: 'var(--primary)', 
+                              cursor: 'pointer', 
+                              padding: '5px', 
+                              borderRadius: '6px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.2s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'rgba(99, 102, 241, 0.16)';
+                              e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.4)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'rgba(99, 102, 241, 0.08)';
+                              e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.2)';
+                            }}
+                            title="Edit review"
+                          >
+                            <Edit3 size={13} />
+                          </button>
+                          <button
+                            onClick={handleReviewDelete}
+                            style={{ 
+                              background: 'rgba(239, 68, 68, 0.08)', 
+                              border: '1px solid rgba(239, 68, 68, 0.2)', 
+                              color: 'var(--danger)', 
+                              cursor: 'pointer', 
+                              padding: '5px', 
+                              borderRadius: '6px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.2s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.16)';
+                              e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
+                              e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                            }}
+                            title="Delete review"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div style={{ display: 'flex', color: 'var(--warning)', gap: '2px' }}>
+                      {renderStars(rev.rating)}
+                    </div>
+                    
+                    <p style={{ 
+                      fontSize: '13px', 
+                      color: 'var(--text-secondary)', 
+                      margin: 0,
+                      lineHeight: '1.5',
+                      overflowY: 'auto',
+                      maxHeight: '80px',
+                      scrollbarWidth: 'none'
+                    }}>
+                      {rev.comment}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Add Review Form */}
+          <div className="glass-card" style={{ padding: '24px', transition: 'none', transform: 'none', maxWidth: '600px', width: '100%', marginTop: '8px' }}>
+            <h4 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px' }}>
+              {isEditingReview ? 'Edit Your Review' : 'Write a Review'}
+            </h4>
+            {!isAuthenticated ? (
+              <div style={{ padding: '16px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>Please login to share your feedback.</p>
+                <Link to="/login" className="btn btn-primary" style={{ display: 'inline-flex', padding: '8px 16px' }}>
+                  Log In
+                </Link>
+              </div>
+            ) : product.reviews?.some(r => r.user === user?.id || r.user?._id === user?.id) && !isEditingReview ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <p style={{ color: 'var(--accent)', fontWeight: 600, margin: 0 }}>You have already reviewed this product.</p>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => {
+                    const myRev = product.reviews.find(r => r.user === user?.id || r.user?._id === user?.id);
+                    if (myRev) {
+                      setRating(myRev.rating);
+                      setComment(myRev.comment);
+                      setIsEditingReview(true);
+                    }
+                  }}
+                  style={{ width: 'fit-content', padding: '6px 12px', fontSize: '13px' }}
+                >
+                  Edit My Review
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleReviewSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ display: 'block', marginBottom: '8px' }}>Rating</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setRating(star)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                      >
+                        <Star
+                          size={24}
+                          fill={star <= rating ? 'var(--warning)' : 'none'}
+                          color={star <= rating ? 'var(--warning)' : 'var(--text-muted)'}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label htmlFor="comment" style={{ display: 'block', marginBottom: '8px' }}>Comment</label>
+                  <textarea
+                    id="comment"
+                    className="form-input"
+                    rows="4"
+                    placeholder="Describe your experience with this product..."
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    required
+                    style={{ width: '100%', padding: '12px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)' }}
+                  />
+                </div>
+
+                <button 
+                  type="submit" 
+                  className="btn btn-primary" 
+                  disabled={submittingReview}
+                  style={{ width: '100%', height: '44px' }}
+                >
+                  {submittingReview ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    isEditingReview ? 'Update Review' : 'Submit Review'
+                  )}
+                </button>
+
+                {isEditingReview && (
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary" 
+                    onClick={() => {
+                      setIsEditingReview(false);
+                      setComment('');
+                      setRating(5);
+                    }}
+                    style={{ width: '100%', height: '44px' }}
+                  >
+                    Cancel Edit
+                  </button>
+                )}
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Seller & Recommendations Section */}
+      {product.user && (
+        <div className="seller-recommendations-section" style={{ marginTop: '48px', display: 'flex', flexDirection: 'column', gap: '40px' }}>
+          <hr style={{ borderColor: 'var(--border-color)', margin: '20px 0' }} />
+          
+          {/* Seller's Other Products */}
+          <div style={{ minWidth: 0 }}>
+            <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span>More Products from</span>
+              <span style={{ background: 'linear-gradient(135deg, var(--primary), var(--secondary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{product.user.name}</span>
+              {product.user.email && (
+                <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.04)', padding: '2px 8px', borderRadius: '12px', border: '1px solid var(--border-color)', marginLeft: '4px' }}>
+                  {product.user.email}
+                </span>
+              )}
+            </h4>
+            {sellerLoading ? (
+              <div style={{ display: 'flex', padding: '40px 0', gap: '12px' }}>
+                <Loader2 className="animate-spin primary" size={24} />
+                <span style={{ color: 'var(--text-secondary)' }}>Loading other products...</span>
+              </div>
+            ) : sellerProducts.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>No other products listed by this seller.</p>
+            ) : (
+              <div 
+                className="horizontal-scroll" 
+                style={{ 
+                  display: 'flex', 
+                  overflowX: 'auto', 
+                  gap: '20px', 
+                  padding: '8px 4px 16px 4px', 
+                  scrollbarWidth: 'thin',
+                  WebkitOverflowScrolling: 'touch'
+                }}
+              >
+                {sellerProducts.map((p) => (
+                  <div key={p._id} style={{ flex: '0 0 260px' }}>
+                    <ProductCard product={p} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <hr style={{ borderColor: 'var(--border-color)', margin: '10px 0' }} />
+
+          {/* Related Products */}
+          <div style={{ minWidth: 0 }}>
+            <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '16px' }}>
+              Related Products
+            </h4>
+            {relatedLoading ? (
+              <div style={{ display: 'flex', padding: '40px 0', gap: '12px' }}>
+                <Loader2 className="animate-spin primary" size={24} />
+                <span style={{ color: 'var(--text-secondary)' }}>Loading related products...</span>
+              </div>
+            ) : relatedProducts.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>No related products found in this category.</p>
+            ) : (
+              <div 
+                className="horizontal-scroll" 
+                style={{ 
+                  display: 'flex', 
+                  overflowX: 'auto', 
+                  gap: '20px', 
+                  padding: '8px 4px 16px 4px', 
+                  scrollbarWidth: 'thin',
+                  WebkitOverflowScrolling: 'touch'
+                }}
+              >
+                {relatedProducts.map((p) => (
+                  <div key={p._id} style={{ flex: '0 0 260px' }}>
+                    <ProductCard product={p} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

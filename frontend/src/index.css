@@ -83,7 +83,8 @@ body {
   background-image:
     radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
     radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.08) 0px, transparent 50%);
-  background-attachment: scroll; /* Changed from fixed to eliminate scroll paint lag */
+  background-attachment: scroll;
+  /* Changed from fixed to eliminate scroll paint lag */
 }
 
 #root {
@@ -160,6 +161,7 @@ textarea {
   z-index: 100;
   width: 100%;
   border-bottom: 1px solid var(--border-color);
+  background: var(--bg-primary) !important;
 }
 
 .navbar {
@@ -1390,21 +1392,119 @@ textarea {
   }
 }
 
+/* Mobile Toggle Group */
+.mobile-toggle-group {
+  display: none;
+}
+
+/* On Desktop, hide mobile toggle */
+@media (min-width: 769px) {
+  .theme-toggle-desktop {
+    display: flex !important;
+  }
+}
+
 @media (max-width: 768px) {
+  .container {
+    padding: 0 12px !important;
+  }
+
   .navbar {
-    height: auto;
-    flex-direction: column;
-    padding: 16px 0;
+    height: 70px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0;
+  }
+
+  .mobile-toggle-group {
+    display: flex !important;
+    align-items: center;
     gap: 16px;
   }
 
+  .theme-toggle-desktop {
+    display: none !important;
+  }
+
+  /* Search bar styling in mobile */
   .search-bar {
+    display: none;
+    width: 100%;
+    margin: 10px 0;
+  }
+
+  .search-bar.mobile-open {
+    display: flex !important;
+    position: absolute;
+    top: 70px;
+    left: 0;
+    width: 100%;
+    padding: 10px 24px;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
+    z-index: 101;
+  }
+
+  /* Navigation links styling in mobile */
+  .nav-links {
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    background: var(--bg-primary);
+    position: absolute;
+    top: 70px;
+    left: 0;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-color);
+    z-index: 100;
+    gap: 16px;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .nav-links.mobile-open {
+    display: flex !important;
+    top: 130px; /* Offset for search bar height */
+  }
+
+  .nav-link {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .nav-link:hover,
+  .nav-link.active {
+    background: rgba(99, 102, 241, 0.08);
+  }
+
+  .nav-link.active::after {
+    display: none; /* Remove bottom border indicator on mobile */
+  }
+
+  /* Keep labels visible inside dropdown menu on mobile */
+  .nav-link-label {
+    display: inline !important;
+    margin-left: 8px;
+  }
+
+  .avatar-btn {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .user-dropdown-container {
     width: 100%;
   }
 
-  .nav-links {
-    width: 100%;
-    justify-content: space-around;
+  .dropdown-menu {
+    position: static !important;
+    width: 100% !important;
+    margin-top: 8px;
+    box-shadow: none !important;
+    border: 1px solid var(--border-color) !important;
   }
 
   .cart-item {
@@ -1415,6 +1515,31 @@ textarea {
   .cart-item-actions {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .details-actions {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .quantity-selector {
+    width: 100% !important;
+    justify-content: space-between;
+  }
+
+  .details-actions .btn-primary {
+    flex-grow: 1;
+    width: calc(100% - 60px) !important;
+  }
+
+  .thumbnail-list {
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+  }
+
+  .thumbnail-list::-webkit-scrollbar {
+    display: none;
   }
 }
 
@@ -1530,4 +1655,32 @@ textarea {
     padding: 16px 20px !important;
     gap: 20px !important;
   }
+}
+
+/* Elegant horizontal scrollbar styling for premium look */
+.horizontal-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) rgba(255, 255, 255, 0.02);
+}
+
+.horizontal-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.horizontal-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 10px;
+}
+
+.horizontal-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  transition: background var(--transition-fast);
+}
+
+.horizontal-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+  box-shadow: 0 0 10px var(--primary-glow);
 }
