@@ -36,6 +36,22 @@ export const createOrder = createAsyncThunk(
   }
 );
 
+export const payOrder = createAsyncThunk(
+  'orders/pay',
+  async ({ id, paymentDetails }, { rejectWithValue }) => {
+    try {
+      const response = await apiClient(`/orders/${id}/pay`, {
+        method: 'PUT',
+        body: JSON.stringify({ paymentDetails }),
+      });
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to complete payment');
+    }
+  }
+);
+
+
 export const fetchOrderDetails = createAsyncThunk(
   'orders/fetchDetails',
   async (id, { rejectWithValue }) => {
@@ -124,6 +140,32 @@ const orderSlice = createSlice({
         state.error = action.payload;
         state.success = false;
       })
+
+      // Pay Order
+      .addCase(payOrder.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.success = false;
+      })
+      .addCase(payOrder.fulfilled, (state, action) => {
+        state.loading = false;
+        state.success = true;
+        const paidOrder = action.payload.data;
+        // Update in list
+        state.orders = state.orders.map((o) =>
+          o._id === paidOrder._id ? paidOrder : o
+        );
+        // Update in details
+        if (state.orderDetails && state.orderDetails._id === paidOrder._id) {
+          state.orderDetails = paidOrder;
+        }
+      })
+      .addCase(payOrder.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+        state.success = false;
+      })
+
 
       // Fetch Order Details
       .addCase(fetchOrderDetails.pending, (state) => {

@@ -12,7 +12,7 @@ export const Register = () => {
   const location = useLocation();
   const dispatch = useDispatch();
 
-  const { loading, error, isAuthenticated } = useSelector((state) => state.auth);
+  const { loading, error, isAuthenticated, user } = useSelector((state) => state.auth);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -22,13 +22,20 @@ export const Register = () => {
   const redirect = new URLSearchParams(location.search).get('redirect') || '/';
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user) {
       dispatch(fetchCart());
       dispatch(fetchWishlist());
       showToast('success', 'Account created and logged in!');
-      navigate(redirect);
+      
+      if (user.role === 'admin') {
+        navigate('/admin');
+      } else if (user.role === 'seller') {
+        navigate('/seller');
+      } else {
+        navigate(redirect);
+      }
     }
-  }, [isAuthenticated, navigate, redirect, dispatch]);
+  }, [isAuthenticated, user, navigate, redirect, dispatch]);
 
   useEffect(() => {
     // Clear errors when leaving page

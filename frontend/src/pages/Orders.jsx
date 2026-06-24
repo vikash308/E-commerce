@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';
-import { Package, Calendar, MapPin, DollarSign, Loader2, ArrowLeft, XCircle } from 'lucide-react';
+import { Package, Calendar, MapPin, DollarSign, Loader2, ArrowLeft, XCircle, Printer } from 'lucide-react';
 import { fetchOrders, cancelOrder } from '../store/slices/orderSlice';
 import showToast from '../utils/toast';
+import { printInvoice } from '../utils/invoice';
 
 export const Orders = () => {
   const dispatch = useDispatch();
@@ -136,36 +137,72 @@ export const Orders = () => {
 
                 {/* Shipping info / Actions */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', borderLeft: '1px solid var(--border-color)', paddingLeft: '32px' }}>
-                  <div>
-                    <span className="order-meta-label" style={{ marginBottom: '8px', display: 'block' }}>Shipping Address</span>
-                    <p style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                      <MapPin size={16} className="primary" style={{ flexShrink: 0, marginTop: '2px' }} />
-                      <span>
-                        {order.shippingAddress?.address},<br />
-                        {order.shippingAddress?.city}, {order.shippingAddress?.postalCode},<br />
-                        {order.shippingAddress?.country}
-                      </span>
-                    </p>
+                  {/* Shipping Address & Payment Method in one line */}
+                  <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                    <div style={{ flex: '1 1 180px' }}>
+                      <span className="order-meta-label" style={{ marginBottom: '6px', display: 'block' }}>Shipping Address</span>
+                      <p style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
+                        <MapPin size={16} className="primary" style={{ flexShrink: 0, marginTop: '2px' }} />
+                        <span>
+                          {order.shippingAddress?.address}, {order.shippingAddress?.city}, {order.shippingAddress?.postalCode}, {order.shippingAddress?.country}
+                        </span>
+                      </p>
+                    </div>
+
+                    <div style={{ flex: '0 0 auto', minWidth: '140px' }}>
+                      <span className="order-meta-label" style={{ marginBottom: '6px', display: 'block' }}>Payment Method</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--accent)', margin: 0 }}>
+                          {order.paymentMethod === 'COD' ? 'Cash On Delivery' : (order.paymentMethod === 'Card' ? 'Stripe' : order.paymentMethod)}
+                        </p>
+                        <span 
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            background: order.isPaid ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                            color: order.isPaid ? 'var(--accent)' : 'var(--danger)',
+                            border: `1px solid ${order.isPaid ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
+                          }}
+                        >
+                          {order.isPaid ? 'PAID' : 'UNPAID'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  <div>
-                    <span className="order-meta-label" style={{ marginBottom: '4px', display: 'block' }}>Payment Method</span>
-                    <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--accent)' }}>
-                      {order.paymentMethod === 'COD' ? 'Cash On Delivery' : order.paymentMethod}
-                    </p>
-                  </div>
-
-                  {/* Actions (Cancel) */}
-                  {(order.status === 'Pending' || order.status === 'Processing') && (
+                  {/* Actions (Pay Now & Cancel & Print Invoice) */}
+                  <div style={{ display: 'flex', gap: '10px', marginTop: 'auto', flexWrap: 'wrap' }}>
+                    {order.status === 'Pending' && !order.isPaid && (
+                      <Link 
+                        to={`/payment/${order._id}`} 
+                        className="btn btn-primary"
+                        style={{ padding: '8px 16px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <DollarSign size={14} />
+                        Pay Now
+                      </Link>
+                    )}
                     <button 
-                      className="btn btn-danger" 
-                      style={{ marginTop: 'auto', padding: '8px 16px', fontSize: '13px', alignSelf: 'flex-start' }}
-                      onClick={() => handleCancelOrder(order._id)}
+                      onClick={() => printInvoice(order)} 
+                      className="btn btn-secondary" 
+                      style={{ padding: '8px 16px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                     >
-                      <XCircle size={14} />
-                      Cancel Order
+                      <Printer size={14} />
+                      Invoice
                     </button>
-                  )}
+                    {(order.status === 'Pending' || order.status === 'Processing') && (
+                      <button 
+                        className="btn btn-danger" 
+                        style={{ padding: '8px 16px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        onClick={() => handleCancelOrder(order._id)}
+                      >
+                        <XCircle size={14} />
+                        Cancel Order
+                      </button>
+                    )}
+                  </div>
                 </div>
 
               </div>

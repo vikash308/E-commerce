@@ -203,7 +203,7 @@ export const Profile = () => {
               Become a Seller on VikaStore
             </h4>
             
-            {(!user.sellerRequestStatus || user.sellerRequestStatus === 'none') && (
+            {(!user.sellerRequestStatus || user.sellerRequestStatus === 'none' || user.sellerRequestStatus === 'approved') && (
               <div>
                 <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.5', marginBottom: '16px' }}>
                   Want to sell your own merchandise? Apply to become a seller! You'll be able to publish products, manage your inventory, and view store statistics directly from the portal once approved.

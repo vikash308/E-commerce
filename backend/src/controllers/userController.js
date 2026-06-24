@@ -40,6 +40,9 @@ const updateUserRole = async (req, res, next) => {
     }
 
     user.role = role;
+    if (role === 'customer') {
+      user.sellerRequestStatus = 'none';
+    }
     await user.save();
 
     res.status(200).json({

@@ -5,6 +5,11 @@ const {
   getOrderDetails,
   cancelOrder,
   updateOrderStatus,
+  payOrder,
+  createStripeSession,
+  confirmStripePayment,
+  createRazorpayOrder,
+  confirmRazorpayPayment,
 } = require('../controllers/orderController');
 const { protect, admin, authorize } = require('../middlewares/authMiddleware');
 const { validateOrder } = require('../middlewares/validationMiddleware');
@@ -20,6 +25,21 @@ router.route('/')
 
 router.route('/:id')
   .get(getOrderDetails);
+
+router.route('/:id/pay')
+  .put(payOrder);
+
+router.route('/:id/stripe-session')
+  .post(createStripeSession);
+
+router.route('/:id/stripe-confirm')
+  .post(confirmStripePayment);
+
+router.route('/:id/razorpay-order')
+  .post(createRazorpayOrder);
+
+router.route('/:id/razorpay-confirm')
+  .post(confirmRazorpayPayment);
 
 router.route('/:id/cancel')
   .put(cancelOrder);

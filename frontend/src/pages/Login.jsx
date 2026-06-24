@@ -12,7 +12,7 @@ export const Login = () => {
   const location = useLocation();
   const dispatch = useDispatch();
 
-  const { loading, error, isAuthenticated } = useSelector((state) => state.auth);
+  const { loading, error, isAuthenticated, user } = useSelector((state) => state.auth);
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,14 +21,21 @@ export const Login = () => {
   const redirect = new URLSearchParams(location.search).get('redirect') || '/';
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user) {
       // Fetch user's cart and wishlist immediately upon login
       dispatch(fetchCart());
       dispatch(fetchWishlist());
       showToast('success', 'Logged in successfully!');
-      navigate(redirect);
+      
+      if (user.role === 'admin') {
+        navigate('/admin');
+      } else if (user.role === 'seller') {
+        navigate('/seller');
+      } else {
+        navigate(redirect);
+      }
     }
-  }, [isAuthenticated, navigate, redirect, dispatch]);
+  }, [isAuthenticated, user, navigate, redirect, dispatch]);
 
   useEffect(() => {
     // Clear errors when leaving page

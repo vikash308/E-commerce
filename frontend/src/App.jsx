@@ -19,6 +19,8 @@ const Register = lazy(() => import('./pages/Register'));
 const Profile = lazy(() => import('./pages/Profile'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const Payment = lazy(() => import('./pages/Payment'));
+const OrderSuccess = lazy(() => import('./pages/OrderSuccess'));
 
 // Lazy loaded Admin Pages
 const AdminLayout = lazy(() => import('./components/AdminLayout'));
@@ -120,6 +122,23 @@ export const App = () => {
                 </ProtectedRoute>
               } 
             />
+            <Route 
+              path="/payment/:orderId" 
+              element={
+                <ProtectedRoute>
+                  <Payment />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/order-success/:orderId" 
+              element={
+                <ProtectedRoute>
+                  <OrderSuccess />
+                </ProtectedRoute>
+              } 
+            />
+
 
             {/* Admin panel routes (Protected for admin only) */}
             <Route 

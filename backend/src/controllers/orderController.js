@@ -52,6 +52,9 @@ const placeOrder = async (req, res, next) => {
     const taxPrice = Number((0.15 * itemsPrice).toFixed(2)); // 15% tax rate
     const totalPrice = itemsPrice + shippingPrice + taxPrice;
 
+    // Set status to Processing (confirmed) for COD, otherwise Pending
+    const orderStatus = (paymentMethod === 'COD') ? 'Processing' : 'Pending';
+
     // Create the Order
     const order = await Order.create({
       user: req.user._id,
@@ -61,7 +64,8 @@ const placeOrder = async (req, res, next) => {
       itemsPrice,
       taxPrice,
       shippingPrice,
-      totalPrice
+      totalPrice,
+      status: orderStatus
     });
 
     // Decrement product inventory quantities
@@ -286,10 +290,311 @@ const updateOrderStatus = async (req, res, next) => {
   }
 };
 
+// PUT /api/orders/:id/pay
+const payOrder = async (req, res, next) => {
+  const { id } = req.params;
+  const { paymentDetails, paymentMethod } = req.body;
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      const error = new Error('Invalid order ID');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const order = await Order.findById(id);
+    if (!order) {
+      const error = new Error('Order not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    // Ensure only the user who placed the order (or an admin) can pay
+    if (order.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      const error = new Error('Not authorized to pay for this order');
+      error.statusCode = 403;
+      return next(error);
+    }
+
+    if (order.isPaid) {
+      const error = new Error('Order is already paid');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    if (paymentMethod === 'COD') {
+      order.paymentMethod = 'COD';
+      order.status = 'Processing';
+      order.isPaid = false;
+    } else {
+      // Update order payment status
+      order.isPaid = true;
+      order.paidAt = Date.now();
+      order.status = 'Processing';
+      if (paymentMethod) {
+        order.paymentMethod = paymentMethod;
+      }
+    }
+
+    await order.save();
+
+    res.status(200).json({
+      success: true,
+      message: paymentMethod === 'COD' ? 'COD Order confirmed successfully' : 'Order paid successfully',
+      data: order
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Dynamic Stripe Instance Getter
+const getStripeInstance = () => {
+  if (!process.env.STRIPE_SECRET_KEY) return null;
+  try {
+    return require('stripe')(process.env.STRIPE_SECRET_KEY);
+  } catch (err) {
+    return null;
+  }
+};
+
+// POST /api/orders/:id/stripe-session
+const createStripeSession = async (req, res, next) => {
+  const { id } = req.params;
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      const error = new Error('Invalid order ID');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const order = await Order.findById(id);
+    if (!order) {
+      const error = new Error('Order not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    const stripeInstance = getStripeInstance();
+    if (!stripeInstance) {
+      return res.status(200).json({
+        success: false,
+        isMock: true,
+        message: 'Stripe secret key not configured. Please use Card Simulator.'
+      });
+    }
+
+    const session = await stripeInstance.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: order.orderItems.map((item) => ({
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: item.name
+          },
+          unit_amount: Math.round(item.price * 100) // cents
+        },
+        quantity: item.quantity
+      })),
+      mode: 'payment',
+      success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/order-success/${order._id}?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/payment/${order._id}`,
+      metadata: { orderId: order._id.toString() }
+    });
+
+    res.status(200).json({
+      success: true,
+      url: session.url,
+      sessionId: session.id
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/orders/:id/stripe-confirm
+const confirmStripePayment = async (req, res, next) => {
+  const { id } = req.params;
+  const { sessionId } = req.body;
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      const error = new Error('Invalid order ID');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const order = await Order.findById(id);
+    if (!order) {
+      const error = new Error('Order not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    const stripeInstance = getStripeInstance();
+    if (!stripeInstance || !sessionId) {
+      const error = new Error('Stripe is not configured or sessionId is missing');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const session = await stripeInstance.checkout.sessions.retrieve(sessionId);
+    if (session.payment_status === 'paid') {
+      order.isPaid = true;
+      order.paidAt = Date.now();
+      order.status = 'Processing';
+      await order.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Stripe payment confirmed successfully',
+        data: order
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: 'Stripe payment was not successful'
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Dynamic Razorpay Instance Getter
+const getRazorpayInstance = () => {
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) return null;
+  try {
+    return new (require('razorpay'))({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+  } catch (err) {
+    return null;
+  }
+};
+
+// POST /api/orders/:id/razorpay-order
+const createRazorpayOrder = async (req, res, next) => {
+  const { id } = req.params;
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      const error = new Error('Invalid order ID');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const order = await Order.findById(id);
+    if (!order) {
+      const error = new Error('Order not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    const razorpayInstance = getRazorpayInstance();
+    if (!razorpayInstance) {
+      return res.status(200).json({
+        success: false,
+        message: 'Razorpay integration is not configured on the backend. Please define RAZORPAY_KEY_ID & RAZORPAY_KEY_SECRET in backend .env, and run "npm install razorpay".'
+      });
+    }
+
+    // Razorpay amounts are in the smallest currency unit (e.g. paisa)
+    const amount = Math.round(order.totalPrice * 100);
+
+    const options = {
+      amount, // amount in paisa
+      currency: 'INR',
+      receipt: `receipt_order_${order._id}`,
+      notes: { orderId: order._id.toString() }
+    };
+
+    const razorpayOrder = await razorpayInstance.orders.create(options);
+
+    res.status(200).json({
+      success: true,
+      key: process.env.RAZORPAY_KEY_ID,
+      orderId: razorpayOrder.id,
+      amount: razorpayOrder.amount,
+      currency: razorpayOrder.currency
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/orders/:id/razorpay-confirm
+const confirmRazorpayPayment = async (req, res, next) => {
+  const { id } = req.params;
+  const { razorpayPaymentId, razorpayOrderId, razorpaySignature } = req.body;
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      const error = new Error('Invalid order ID');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const order = await Order.findById(id);
+    if (!order) {
+      const error = new Error('Order not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    if (!razorpayPaymentId || !razorpayOrderId || !razorpaySignature) {
+      const error = new Error('Missing Razorpay validation parameters');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keySecret) {
+      const error = new Error('Razorpay secret key is not configured');
+      error.statusCode = 500;
+      return next(error);
+    }
+
+    // Verify signature using HMac SHA256
+    const crypto = require('crypto');
+    const hmac = crypto.createHmac('sha256', keySecret);
+    hmac.update(`${razorpayOrderId}|${razorpayPaymentId}`);
+    const generatedSignature = hmac.digest('hex');
+
+    if (generatedSignature === razorpaySignature) {
+      order.isPaid = true;
+      order.paidAt = Date.now();
+      order.status = 'Processing';
+      order.paymentMethod = 'Razorpay';
+      await order.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Razorpay payment verified successfully',
+        data: order
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: 'Razorpay signature verification failed'
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   placeOrder,
   getOrders,
   getOrderDetails,
   cancelOrder,
-  updateOrderStatus
+  updateOrderStatus,
+  payOrder,
+  createStripeSession,
+  confirmStripePayment,
+  createRazorpayOrder,
+  confirmRazorpayPayment
 };

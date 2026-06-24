@@ -24,16 +24,11 @@ export const Cart = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    if (orderSuccess) {
-      showToast('success', 'Order placed successfully!');
-      dispatch(resetOrderState());
-      navigate('/orders');
-    }
     if (orderError) {
       showToast('error', orderError);
       dispatch(resetOrderState());
     }
-  }, [orderSuccess, orderError, navigate, dispatch]);
+  }, [orderError, dispatch]);
 
   const handleQtyChange = async (productId, currentQty, stockQty, action) => {
     let newQty = currentQty;
@@ -64,7 +59,7 @@ export const Cart = () => {
     }
   };
 
-  const handleCheckoutSubmit = (e) => {
+  const handleCheckoutSubmit = async (e) => {
     e.preventDefault();
 
     if (!address || !city || !postalCode || !country) {
@@ -79,10 +74,18 @@ export const Cart = () => {
         postalCode,
         country,
       },
-      paymentMethod: 'COD', // Cash On Delivery default
+      paymentMethod: 'Card', // Default to online checkout; payment selection is made on the payment page
     };
 
-    dispatch(createOrder(orderData));
+    try {
+      const response = await dispatch(createOrder(orderData)).unwrap();
+      const order = response.data;
+      dispatch(resetOrderState());
+      showToast('success', 'Order created! Opening payment portal...');
+      navigate(`/payment/${order._id}`);
+    } catch (err) {
+      showToast('error', typeof err === 'string' ? err : err.message || 'Failed to place order');
+    }
   };
 
   // Calculations
@@ -256,23 +259,23 @@ export const Cart = () => {
             <button 
               type="submit" 
               className="btn btn-primary" 
-              style={{ width: '100%', height: '48px', marginTop: '10px' }}
+              style={{ width: '100%', height: '48px', marginTop: '20px' }}
               disabled={orderLoading}
             >
               {orderLoading ? (
                 <>
                   <Loader2 size={18} className="animate-spin" />
-                  Placing Order...
+                  Creating Order...
                 </>
               ) : (
-                'Place Order (COD)'
+                'Proceed to Payment'
               )}
             </button>
           </form>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '16px', fontSize: '11px', color: 'var(--text-muted)', justifyContent: 'center' }}>
             <ShieldCheck size={14} className="accent" />
-            <span>Secure Cash-On-Delivery Order System</span>
+            <span>Secure Checkout and Payment Encryption</span>
           </div>
         </aside>
       </div>
