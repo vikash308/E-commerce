@@ -92,7 +92,12 @@ const placeOrder = async (req, res, next) => {
 const getOrders = async (req, res, next) => {
   try {
     let orders;
-    if (req.user.role === 'admin') {
+    const isPersonal = req.query.personal === 'true';
+
+    if (isPersonal) {
+      // Regardless of role, if they ask for personal orders, only give their own
+      orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
+    } else if (req.user.role === 'admin') {
       // Admin sees all orders
       orders = await Order.find({}).populate('user', 'name email').sort({ createdAt: -1 });
     } else if (req.user.role === 'seller') {

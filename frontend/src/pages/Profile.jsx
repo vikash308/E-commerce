@@ -25,7 +25,7 @@ export const Profile = () => {
   const [showPasswordFields, setShowPasswordFields] = useState(false);
 
   useEffect(() => {
-    dispatch(fetchOrders());
+    dispatch(fetchOrders({ personal: true }));
   }, [dispatch]);
 
   // Sync state when user details load or when starting edit

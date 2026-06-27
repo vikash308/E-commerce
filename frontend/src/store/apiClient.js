@@ -54,11 +54,11 @@ axiosInstance.interceptors.response.use(
       if (refreshToken) {
         if (!isRefreshing) {
           isRefreshing = true;
-          
+
           try {
             const refreshRes = await axios.post(`${API_URL}/auth/refresh-token`, { refreshToken });
             const newAccessToken = refreshRes.data.tokens.accessToken;
-            
+
             localStorage.setItem('accessToken', newAccessToken);
             isRefreshing = false;
             onRefreshed(newAccessToken);
@@ -89,7 +89,7 @@ axiosInstance.interceptors.response.use(
 // Export apiClient wrapper for backwards compatibility
 export const apiClient = async (endpoint, options = {}) => {
   const method = (options.method || 'GET').toLowerCase();
-  
+
   // Map options.body (which might be JSON string or FormData) to axios data
   let data = options.body;
   if (data && typeof data === 'string') {
@@ -109,7 +109,7 @@ export const apiClient = async (endpoint, options = {}) => {
       data,
       headers,
     });
-    
+
     return response.data;
   } catch (error) {
     // Standardize error formats for existing components

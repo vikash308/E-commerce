@@ -11,9 +11,10 @@ const initialState = {
 
 export const fetchOrders = createAsyncThunk(
   'orders/fetchAll',
-  async (_, { rejectWithValue }) => {
+  async (options = {}, { rejectWithValue }) => {
     try {
-      const response = await apiClient('/orders');
+      const query = options.personal ? '?personal=true' : '';
+      const response = await apiClient(`/orders${query}`);
       return response;
     } catch (error) {
       return rejectWithValue(error.message || 'Failed to fetch orders');

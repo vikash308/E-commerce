@@ -12,7 +12,7 @@ export const Orders = () => {
   const { orders, loading } = useSelector((state) => state.orders);
 
   useEffect(() => {
-    dispatch(fetchOrders());
+    dispatch(fetchOrders({ personal: true }));
   }, [dispatch]);
 
   const handleCancelOrder = async (orderId) => {
