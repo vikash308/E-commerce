@@ -26,7 +26,7 @@ export const Payment = () => {
   const { orderDetails: order, loading, error } = useSelector((state) => state.orders);
 
   // Payment UI state
-  const [activeTab, setActiveTab] = useState('stripe'); // 'stripe', 'razorpay' or 'cod'
+  const [activeTab, setActiveTab] = useState('razorpay'); // 'razorpay', 'stripe' or 'cod'
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState('');
   const [stripeConfigError, setStripeConfigError] = useState('');
@@ -250,16 +250,6 @@ export const Payment = () => {
           {/* Payment Method Tabs */}
           <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', gap: '16px', overflowX: 'auto', paddingBottom: '4px' }}>
             <button 
-              className={`nav-link ${activeTab === 'stripe' ? 'active' : ''}`}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', fontWeight: 600, paddingBottom: '12px', whiteSpace: 'nowrap' }}
-              onClick={() => { setActiveTab('stripe'); setIsProcessing(false); }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: activeTab === 'stripe' ? 'var(--primary)' : 'var(--text-secondary)' }}>
-                <CreditCard size={18} />
-                Stripe (Real Card)
-              </span>
-            </button>
-            <button 
               className={`nav-link ${activeTab === 'razorpay' ? 'active' : ''}`}
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', fontWeight: 600, paddingBottom: '12px', whiteSpace: 'nowrap' }}
               onClick={() => { setActiveTab('razorpay'); setIsProcessing(false); }}
@@ -267,6 +257,16 @@ export const Payment = () => {
               <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: activeTab === 'razorpay' ? 'var(--primary)' : 'var(--text-secondary)' }}>
                 <DollarSign size={18} />
                 Razorpay (UPI/Cards)
+              </span>
+            </button>
+            <button 
+              className={`nav-link ${activeTab === 'stripe' ? 'active' : ''}`}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', fontWeight: 600, paddingBottom: '12px', whiteSpace: 'nowrap' }}
+              onClick={() => { setActiveTab('stripe'); setIsProcessing(false); }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: activeTab === 'stripe' ? 'var(--primary)' : 'var(--text-secondary)' }}>
+                <CreditCard size={18} />
+                Stripe (Real Card)
               </span>
             </button>
             <button 

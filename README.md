@@ -1,5 +1,7 @@
 # VikaStore E-Commerce Platform - Complete Master Guide
 
+**Live Demo:** [https://e-commerce-taupe-phi-74.vercel.app/](https://e-commerce-taupe-phi-74.vercel.app/)
+
 VikaStore is a premium, feature-rich, multi-vendor e-commerce web application built using modern web standards. It delivers a fast, secure, and visually stunning shopping experience for customers while providing robust management dashboards for independent sellers and system administrators.
 
 ---
