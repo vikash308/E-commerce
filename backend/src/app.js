@@ -17,7 +17,7 @@ const app = express();
 app.use(helmet());
 
 // Apply global rate limiting
-app.use('/api', globalLimiter);
+app.use(globalLimiter);
 
 // Request parsing
 app.use(express.json());
@@ -41,13 +41,13 @@ app.use(cors({
 
 
 
-app.use('/api/auth', authRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/cart', cartRoutes);
-app.use('/api/wishlist', wishlistRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/users', userRoutes);
+app.use('/auth', authRoutes);
+app.use('/categories', categoryRoutes);
+app.use('/products', productRoutes);
+app.use('/cart', cartRoutes);
+app.use('/wishlist', wishlistRoutes);
+app.use('/orders', orderRoutes);
+app.use('/users', userRoutes);
 
 app.use((req, res, next) => {
   const error = new Error(`Not Found - ${req.originalUrl}`);
